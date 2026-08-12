@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agente de Marketing</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-icon">📣</span>
+          <span class="logo-text">Marketing Agent</span>
+        </div>
+        <p class="business-name" id="business-name">Cargando...</p>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" data-tab="chat">
+          💬 Chat con el Agente
+        </button>
+        <button class="nav-btn" data-tab="posts">
+          📋 Mis Posts
+        </button>
+        <button class="nav-btn" data-tab="messages">
+          📨 Mensajes de Clientes
+        </button>
+        <button class="nav-btn" data-tab="tickets">
+          🎫 Tickets de Ayuda
+          <span class="badge-count" id="ticket-badge" style="display:none"></span>
+        </button>
+        <button class="nav-btn" data-tab="knowledge">
+          📚 Base de Conocimiento
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-dot" id="connection-status"></div>
+        <span id="connection-label">Conectando...</span>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <!-- Tab: Chat -->
+      <section id="tab-chat" class="tab active">
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages">
+            <div class="welcome-message">
+              <div class="welcome-icon">🤖</div>
+              <h2>Hola! Soy tu Agente de Marketing</h2>
+              <p>Puedo ayudarte a crear posts para Facebook e Instagram, programar publicaciones y manejar tu marketing digital.</p>
+              <div class="quick-actions">
+                <button class="quick-btn" onclick="sendQuick('Crea un post de bienvenida para mi negocio')">
+                  🎉 Post de bienvenida
+                </button>
+                <button class="quick-btn" onclick="sendQuick('Crea un post de promoción para el fin de semana')">
+                  🛍️ Post de promoción
+                </button>
+                <button class="quick-btn" onclick="sendQuick('Crea 5 ideas de posts para esta semana')">
+                  💡 Ideas para la semana
+                </button>
+                <button class="quick-btn" onclick="sendQuick('Crea un post y publícalo ahora en Facebook')">
+                  🚀 Publicar ahora
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-area">
+            <div class="chat-input-container">
+              <textarea
+                id="chat-input"
+                placeholder="Escribe qué tipo de post necesitas... (ej: Crea un post para el día de las madres)"
+                rows="1"
+              ></textarea>
+              <button id="send-btn" onclick="sendMessage()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+            </div>
+            <p class="input-hint">Enter para enviar · Shift+Enter para nueva línea</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Posts -->
+      <section id="tab-posts" class="tab">
+        <div class="tab-header">
+          <h2>Mis Posts</h2>
+          <div class="filter-btns">
+            <button class="filter-btn active" onclick="loadPosts('')">Todos</button>
+            <button class="filter-btn" onclick="loadPosts('draft')">Borradores</button>
+            <button class="filter-btn" onclick="loadPosts('scheduled')">Programados</button>
+            <button class="filter-btn" onclick="loadPosts('published')">Publicados</button>
+          </div>
+        </div>
+        <div id="posts-list" class="posts-list">
+          <div class="loading">Cargando posts...</div>
+        </div>
+      </section>
+
+      <!-- Tab: Mensajes de Clientes -->
+      <section id="tab-messages" class="tab">
+        <div class="tab-header">
+          <h2>Mensajes de Clientes</h2>
+          <div class="filter-btns">
+            <button class="filter-btn active" onclick="loadMessages('')">Todos</button>
+            <button class="filter-btn" onclick="loadMessages('whatsapp')">WhatsApp</button>
+            <button class="filter-btn" onclick="loadMessages('facebook')">Facebook</button>
+          </div>
+        </div>
+        <div id="messages-list" class="messages-list">
+          <div class="loading">Cargando mensajes...</div>
+        </div>
+      </section>
+
+      <!-- Tab: Tickets de Ayuda -->
+      <section id="tab-tickets" class="tab">
+        <div class="tab-header">
+          <h2>Tickets de Ayuda</h2>
+          <div class="filter-btns">
+            <button class="filter-btn active" onclick="loadTickets('open')">Abiertos</button>
+            <button class="filter-btn" onclick="loadTickets('answered')">Respondidos</button>
+            <button class="filter-btn" onclick="loadTickets('all')">Todos</button>
+          </div>
+        </div>
+        <div class="tickets-info">
+          💡 Cuando el agente no pueda responder a un cliente, aparecerá aquí. Escribe la respuesta y se enviará al cliente automáticamente y se guardará en la Base de Conocimiento.
+        </div>
+        <div id="tickets-list" class="tickets-list">
+          <div class="loading">Cargando tickets...</div>
+        </div>
+      </section>
+
+      <!-- Tab: Base de Conocimiento -->
+      <section id="tab-knowledge" class="tab">
+        <div class="tab-header">
+          <h2>Base de Conocimiento</h2>
+          <button class="btn-sm btn-publish" onclick="showAddKBForm()">+ Agregar entrada</button>
+        </div>
+
+        <!-- Formulario para agregar entradas -->
+        <div id="kb-form" class="kb-form" style="display:none">
+          <div class="kb-form-inner">
+            <h3>Nueva entrada</h3>
+            <label>Categoría</label>
+            <select id="kb-category">
+              <option value="general">General</option>
+              <option value="menu">Menú / Productos</option>
+              <option value="horarios">Horarios</option>
+              <option value="pedidos">Pedidos</option>
+              <option value="precios">Precios</option>
+            </select>
+            <label>Pregunta de referencia</label>
+            <input type="text" id="kb-question" placeholder="¿Cuál es el precio de las gorditas?" />
+            <label>Respuesta oficial</label>
+            <textarea id="kb-answer" rows="3" placeholder="Las gorditas cuestan $15 cada una..."></textarea>
+            <div class="kb-form-actions">
+              <button class="btn-sm btn-publish" onclick="saveKBEntry()">Guardar</button>
+              <button class="btn-sm btn-delete" onclick="hideAddKBForm()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="knowledge-list" class="knowledge-list">
+          <div class="loading">Cargando base de conocimiento...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/chat.js"></script>
+</body>
+</html>
