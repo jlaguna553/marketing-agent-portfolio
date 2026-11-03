@@ -15,14 +15,15 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from ..config import get_settings
-from ..models import KnowledgeBase
+from ..models import KnowledgeBase, Lead
+from .free_replies import try_free_reply, cache_put
 
 settings = get_settings()
 
 # Marcador que el modelo usa para señalar que necesita crear un ticket
 _TICKET_MARKER = "[TICKET]"
 
-CUSTOMER_SYSTEM_PROMPT_TEMPLATE = """Eres el asistente virtual de "{business_name}", una gordería artesanal.
+CUSTOMER_SYSTEM_PROMPT_TEMPLATE = """Eres el asistente virtual de "{business_name}", {business_role}.
 
 Descripción: {business_description}
 
@@ -32,14 +33,14 @@ CONOCIMIENTO DEL NEGOCIO (úsalo siempre):
 ════════════════════════════════════════
 
 TU ROL:
-- Tomar pedidos: confirmar tipo de gordita, cantidad y nombre del cliente
-- Responder dudas sobre el negocio usando SOLO el conocimiento de arriba
+- Atender a quien escribe: entender qué necesita y orientarlo
+{booking_line}- Responder dudas sobre el negocio usando SOLO el conocimiento de arriba
 - Si te preguntan algo que NO está en tu conocimiento, crear un ticket de ayuda
 
 REGLAS ESTRICTAS:
 1. Responde en el mismo idioma que el cliente
-2. Usa emojis con moderación (es una gordería tradicional, sé cálido y amable)
-3. Al tomar un pedido, repite el resumen antes de confirmar
+2. Usa emojis con moderación; sé cálido, claro y breve
+3. Si el cliente confirma algo (pedido, cita, datos), repite el resumen antes de cerrar
 4. Si puedes responder con el conocimiento disponible, responde DIRECTAMENTE sin ningún formato especial
 5. SOLO si la pregunta NO está cubierta en tu conocimiento, usa EXACTAMENTE este formato al final:
 
@@ -59,6 +60,8 @@ class AgentResult:
     response_text: str        # Texto a enviar al cliente
     needs_ticket: bool        # ¿Se debe crear ticket?
     ticket_question: str      # Pregunta extraída para el ticket
+    wants_booking: bool = False  # El cliente mostró interés en agendar/cotizar
+    source: str = "llm"       # llm | greeting | booking | kb | cache
 
 
 async def _load_kb_content(db: AsyncSession) -> str:
@@ -90,6 +93,9 @@ def _build_system_prompt(kb_content: str) -> str:
     return CUSTOMER_SYSTEM_PROMPT_TEMPLATE.format(
         business_name=settings.business_name,
         business_description=settings.business_description,
+        business_role=settings.business_role,
+        booking_line=(f"- Si hay interés en contratar o cotizar, invítalo a agendar en {settings.booking_url}\n"
+                      if settings.booking_url else ""),
         kb_content=kb_content,
         ticket_marker=_TICKET_MARKER,
     )
@@ -135,8 +141,8 @@ async def _anthropic_complete(system: str, messages: list[dict]) -> str:
     import anthropic
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     response = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=600,
+        model=settings.anthropic_response_model,
+        max_tokens=settings.max_reply_tokens,
         system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
         messages=messages,
     )
@@ -165,12 +171,25 @@ async def process_customer_message(
     - Detecta si se necesita ticket de ayuda
     - Retorna AgentResult con todo lo necesario para el webhook
     """
+    entries = (await db.execute(select(KnowledgeBase))).scalars().all()
+
+    # 1) Intento sin IA: saludo, agenda, KB o caché (costo $0)
+    free = try_free_reply(customer_message, entries, has_history=bool(conversation_history))
+    if free:
+        if free.kb_id:
+            for e in entries:
+                if e.id == free.kb_id:
+                    e.times_used = (e.times_used or 0) + 1
+        return AgentResult(response_text=free.text, needs_ticket=False, ticket_question="",
+                           wants_booking=free.wants_booking, source=free.reason)
+
+    # 2) Si no alcanza, consulta al modelo con el mínimo de contexto
     kb_content = await _load_kb_content(db)
     system = _build_system_prompt(kb_content)
 
     messages: list[dict] = []
     if conversation_history:
-        for msg in conversation_history[-6:]:
+        for msg in conversation_history[-settings.max_history_messages:]:
             messages.append({"role": msg["role"], "content": msg["content"]})
 
     platform_hint = {
@@ -185,7 +204,10 @@ async def process_customer_message(
     else:
         raw = await _anthropic_complete(system, messages)
 
-    return _parse_response(raw)
+    result = _parse_response(raw)
+    if not result.needs_ticket and not conversation_history:
+        cache_put(customer_message, result.response_text)
+    return result
 
 
 async def should_auto_respond(message: str) -> bool:
@@ -218,7 +240,7 @@ async def generate_customer_response(
         system = _build_system_prompt("(Base de conocimiento no disponible en este contexto)")
         msgs = (conversation_history or [])[-4:] + [{"role": "user", "content": customer_message}]
         resp = await client.messages.create(
-            model="claude-haiku-4-5-20251001", max_tokens=512,
+            model=settings.anthropic_response_model, max_tokens=settings.max_reply_tokens,
             system=system, messages=msgs
         )
         return resp.content[0].text

@@ -132,3 +132,27 @@ marketing-agent/
 Full-stack developer · React · Vue · .NET · PHP
 
 [GitHub](https://github.com/jlaguna553) · [LinkedIn](https://www.linkedin.com/in/francisco-javier-laguna-mondrag%C3%B3n-80a798154/) · [CV Online](https://cv-online.jlaguna553.workers.dev/v/xrdcnyej)
+
+
+## Ahorro de costos (rama `mejora-costos-felix-software`)
+
+La publicación en Facebook/Instagram con la Graph API **no tiene costo por llamada**; el gasto real viene del LLM y, en WhatsApp, de las conversaciones iniciadas por el negocio. Esta versión lo reduce así:
+
+| Medida | Efecto |
+|---|---|
+| Capa de respuestas sin IA (`backend/agents/free_replies.py`): saludos, intención de agendar, coincidencia con la KB y caché | Las preguntas repetidas se contestan con **$0** de IA |
+| Modelo económico por defecto (`ANTHROPIC_*_MODEL`, Haiku) y `MAX_REPLY_TOKENS=350` | Cada llamada restante cuesta mucho menos |
+| Historial recortado (`MAX_HISTORY_MESSAGES=4`) | Menos tokens de entrada |
+| Calendario precargado: `POST /api/posts/import` con `data/calendar_felix_software.json` | Un mes de posts **sin generar con IA** |
+| `LLM_PROVIDER=ollama` | Opción de $0 en API si corres un modelo local |
+| Imágenes locales (`media/`) subidas directo a Facebook | Sin necesidad de hosting de imágenes |
+
+Además se agregó captura de **leads** (`GET /api/leads/`, `PATCH /api/leads/{id}`) cuando alguien pide agendar o cotizar, y la KB inicial de Felix Software (`KB_SEED_FILE=data/kb_felix_software.json`).
+
+```bash
+pip install -r requirements.txt && python -m pytest -q
+curl -X POST localhost:8000/api/posts/import -H 'content-type: application/json' -d @data/calendar_felix_software.json
+```
+
+> Las horas de `scheduled_at` están en UTC (10:00 en Ciudad de México = 16:00 UTC).
+> La base `marketing_agent.db` ya no se versiona: contiene conversaciones reales.

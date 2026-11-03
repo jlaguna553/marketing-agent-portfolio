@@ -87,3 +87,17 @@ class HelpTicket(Base):
     save_to_kb: Mapped[bool] = mapped_column(Boolean, default=True)  # Si guardar en KB al responder
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     answered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class Lead(Base):
+    """Posible cliente detectado en una conversación (interés en agendar/cotizar)."""
+    __tablename__ = "leads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    platform: Mapped[str] = mapped_column(String(20))
+    sender_id: Mapped[str] = mapped_column(String(100), index=True)
+    sender_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    first_message: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="new")  # new | contacted | scheduled | won | lost
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

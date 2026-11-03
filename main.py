@@ -11,7 +11,7 @@ import logging
 
 from backend.database import init_db, AsyncSessionLocal
 from backend.scheduler import start_scheduler, stop_scheduler
-from backend.routers import chat, posts, webhook
+from backend.routers import chat, posts, webhook, leads
 from backend.routers.tickets import router as tickets_router, kb_router
 from backend.config import get_settings
 
@@ -34,6 +34,11 @@ async def _seed_knowledge_base():
         ("¿Hacen pedidos para llevar?", "Sí, manejamos pedidos para llevar. Indícanos la cantidad y el horario en que pasarías.", "pedidos"),
         ("¿Hacen pedidos especiales o por mayoreo?", "Para pedidos especiales o por mayoreo, contáctanos directamente y con gusto te atendemos.", "pedidos"),
     ]
+
+    if settings.kb_seed_file and Path(settings.kb_seed_file).exists():
+        import json
+        data = json.loads(Path(settings.kb_seed_file).read_text(encoding="utf-8"))
+        initial_entries = [(d["question"], d["answer"], d.get("category", "general")) for d in data]
 
     async with AsyncSessionLocal() as db:
         count = (await db.execute(select(func.count()).select_from(KnowledgeBase))).scalar_one()
@@ -68,6 +73,7 @@ app = FastAPI(
 app.include_router(chat.router)
 app.include_router(posts.router)
 app.include_router(webhook.router)
+app.include_router(leads.router)
 app.include_router(tickets_router)
 app.include_router(kb_router)
 

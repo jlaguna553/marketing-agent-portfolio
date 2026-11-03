@@ -23,3 +23,7 @@ obj/
 # Editor/OS
 .DS_Store
 *.log
+
+# Base de datos local (contiene conversaciones y datos de clientes)
+*.db
+*.db-journal
