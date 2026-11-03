@@ -11,6 +11,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   setupInput();
   refreshTicketBadge();
+  initCrmTabs();
+  // Permite abrir una pestaña directo: http://localhost:8000/#crm
+  const hash = location.hash.slice(1);
+  if (hash) setTimeout(() => document.querySelector(`.nav-btn[data-tab="${hash}"]`)?.click(), 300);
   // Refrescar badge de tickets cada 30 segundos
   setInterval(refreshTicketBadge, 30000);
 });
@@ -219,7 +223,7 @@ function buildPostCard(post) {
       </div>
       <span class="post-date">${new Date(post.created_at).toLocaleDateString("es")}</span>
     </div>
-    <div class="post-content">${post.content}</div>
+    <div class="post-content">${esc(post.content)}</div>
     ${scheduledDate ? `<div class="post-date" style="margin-top:8px;">📅 Programado: ${scheduledDate}</div>` : ""}
     ${publishedDate ? `<div class="post-date" style="margin-top:8px;">✅ Publicado: ${publishedDate}</div>` : ""}
     ${post.error_message ? `<div style="color:#ef4444;font-size:12px;margin-top:8px;">⚠️ ${post.error_message}</div>` : ""}
@@ -282,12 +286,12 @@ async function loadMessages(platform = "") {
       <div class="message-card-header">
         <div style="display:flex;align-items:center;gap:10px;">
           <span class="badge badge-${msg.platform}">${msg.platform}</span>
-          <span style="font-weight:600;font-size:14px;">${msg.sender_name || msg.sender_id}</span>
+          <span style="font-weight:600;font-size:14px;">${esc(msg.sender_name || msg.sender_id)}</span>
         </div>
         <span class="post-date">${new Date(msg.created_at).toLocaleString("es")}</span>
       </div>
-      <div class="message-text">💬 ${msg.message}</div>
-      ${msg.response ? `<div class="message-response">🤖 ${msg.response}</div>` : '<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Sin respuesta automática</div>'}
+      <div class="message-text">${msg.direction === "out" ? "📤 (enviado por nosotros) " : "💬 "}${esc(msg.message)}</div>
+      ${msg.response ? `<div class="message-response">🤖 ${esc(msg.response)}</div>` : '<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Sin respuesta automática</div>'}
     `;
     list.appendChild(card);
   }
@@ -342,7 +346,7 @@ function buildTicketCard(t) {
       </div>
     </div>` : (t.operator_answer ? `
     <div class="ticket-answered-text">
-      ✅ <strong>Respuesta enviada:</strong> ${t.operator_answer}
+      ✅ <strong>Respuesta enviada:</strong> ${esc(t.operator_answer)}
     </div>` : "");
 
   card.innerHTML = `
@@ -350,12 +354,12 @@ function buildTicketCard(t) {
       <div class="ticket-meta">
         ${platformBadge}
         ${statusBadge}
-        <span style="font-weight:600;font-size:14px;">${t.sender_name || t.sender_id}</span>
+        <span style="font-weight:600;font-size:14px;">${esc(t.sender_name || t.sender_id)}</span>
       </div>
       <span class="post-date">${date}</span>
     </div>
-    <div class="ticket-question">❓ ${t.extracted_question}</div>
-    <div class="ticket-original">Mensaje original: "${t.original_message}"</div>
+    <div class="ticket-question">❓ ${esc(t.extracted_question)}</div>
+    <div class="ticket-original">Mensaje original: "${esc(t.original_message)}"</div>
     ${answerSection}
   `;
   return card;
@@ -429,8 +433,8 @@ async function loadKnowledge() {
     card.innerHTML = `
       <div class="kb-card-body">
         <div class="kb-cat">${e.category}</div>
-        <div class="kb-question">P: ${e.question}</div>
-        <div class="kb-answer">R: ${e.answer}</div>
+        <div class="kb-question">P: ${esc(e.question)}</div>
+        <div class="kb-answer">R: ${esc(e.answer)}</div>
       </div>
       <div class="kb-actions">
         <button class="btn-sm btn-delete" onclick="deleteKBEntry(${e.id})">🗑️</button>
@@ -489,6 +493,8 @@ function setupTabs() {
       if (tab === "messages") loadMessages();
       if (tab === "tickets") loadTickets("open");
       if (tab === "knowledge") loadKnowledge();
+      if (tab === "crm") loadCrm();
+      if (tab === "sim") loadSim();
     });
   });
 }
@@ -558,4 +564,130 @@ function showToast(message, isError = false) {
   });
   document.body.appendChild(toast);
   setTimeout(() => { toast.style.opacity = "0"; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+
+/* ── Utilidades ────────────────────────────────────────────── */
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ── CRM ───────────────────────────────────────────────────── */
+const CRM_STATUSES = { new: "Nuevo", contacted: "Contactado", scheduled: "Agendado", won: "Cliente", lost: "Perdido" };
+let crmFilter = "";
+let crmOpenId = null;
+
+async function initCrmTabs() {
+  try {
+    const cfg = await (await fetch("/api/config")).json();
+    if (cfg.mock_mode) {
+      document.getElementById("nav-sim").style.display = "";
+      document.getElementById("mock-banner").style.display = "";
+    }
+  } catch (_) {}
+}
+
+async function loadCrm(status = crmFilter) {
+  crmFilter = status;
+  document.querySelectorAll("#crm-filters .filter-btn").forEach(b => b.classList.toggle("active", b.dataset.status === status));
+  const [stats, leads] = await Promise.all([
+    fetch("/api/leads/stats").then(r => r.json()),
+    fetch("/api/leads/" + (status ? `?status=${status}` : "")).then(r => r.json()),
+  ]);
+  document.getElementById("crm-stats").innerHTML = Object.entries(CRM_STATUSES).map(([k, label]) =>
+    `<div class="crm-stat"><div class="crm-stat-n">${stats.by_status[k] ?? 0}</div><div>${label}</div></div>`
+  ).join("") + `<div class="crm-stat crm-stat-hot"><div class="crm-stat-n">${stats.booking_intent}</div><div>Pidieron agendar</div></div>`;
+
+  const list = document.getElementById("crm-list");
+  if (!leads.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Aún no hay contactos. Cuando alguien escriba aparecerá aquí.</p></div>';
+    return;
+  }
+  list.innerHTML = leads.map(l => `
+    <div class="lead-card" data-id="${l.id}">
+      <div class="lead-row" onclick="toggleLead(${l.id})">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="badge badge-${esc(l.platform)}">${esc(l.platform)}</span>
+          <strong>${esc(l.sender_name || l.sender_id)}</strong>
+          ${l.intent === "booking" ? '<span class="badge badge-scheduled">📅 quiere agendar</span>' : ""}
+          ${l.followups_sent ? `<span class="badge badge-draft">seguimientos: ${l.followups_sent}</span>` : ""}
+        </div>
+        <select onclick="event.stopPropagation()" onchange="setLeadStatus(${l.id}, this.value)">
+          ${Object.entries(CRM_STATUSES).map(([k, v]) => `<option value="${k}" ${k === l.status ? "selected" : ""}>${v}</option>`).join("")}
+        </select>
+      </div>
+      <div class="lead-first">“${esc(l.first_message)}”</div>
+      <div class="lead-detail" id="lead-detail-${l.id}" style="display:none"></div>
+    </div>`).join("");
+  if (crmOpenId) toggleLead(crmOpenId, true);
+}
+
+async function setLeadStatus(id, status) {
+  await fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+  showToast("Estado actualizado");
+  loadCrm();
+}
+
+async function toggleLead(id, forceOpen = false) {
+  const box = document.getElementById(`lead-detail-${id}`);
+  if (!box) return;
+  if (!forceOpen && box.style.display !== "none") { box.style.display = "none"; crmOpenId = null; return; }
+  crmOpenId = id;
+  const d = await (await fetch(`/api/leads/${id}`)).json();
+  const who = { client: "👤", bot: "🤖", owner: "🧑‍💻" };
+  box.innerHTML = `
+    <div class="thread">${d.thread.map(t => `<div class="thread-msg thread-${t.from}"><span>${who[t.from]}</span> ${esc(t.text)}</div>`).join("") || "<em>Sin mensajes</em>"}</div>
+    <textarea id="lead-notes-${id}" rows="2" placeholder="Notas internas...">${esc(d.notes || "")}</textarea>
+    <div class="lead-actions">
+      <button class="btn-secondary" onclick="saveLeadNotes(${id})">Guardar notas</button>
+      <input id="lead-reply-${id}" type="text" placeholder="Responder por ${esc(d.platform)}..." onkeydown="if(event.key==='Enter')replyLead(${id})" />
+      <button class="btn-primary" onclick="replyLead(${id})">Enviar</button>
+    </div>`;
+  box.style.display = "block";
+}
+
+async function saveLeadNotes(id) {
+  const notes = document.getElementById(`lead-notes-${id}`).value;
+  await fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) });
+  showToast("Notas guardadas");
+}
+
+async function replyLead(id) {
+  const input = document.getElementById(`lead-reply-${id}`);
+  const text = input.value.trim();
+  if (!text) return;
+  const res = await fetch(`/api/leads/${id}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+  if (!res.ok) { showToast((await res.json()).detail || "No se pudo enviar", true); return; }
+  showToast("Mensaje enviado");
+  loadCrm();
+}
+
+/* ── Simulador (solo modo local) ───────────────────────────── */
+async function loadSim() { refreshOutbox(); }
+
+async function simSend() {
+  const channel = document.getElementById("sim-channel").value;
+  const sender_id = document.getElementById("sim-sender").value.trim() || "5210000000001";
+  const name = document.getElementById("sim-name").value.trim() || "Cliente de prueba";
+  const text = document.getElementById("sim-text").value.trim();
+  if (!text) return;
+  const res = await fetch("/api/dev/simulate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel, sender_id, name, text }) });
+  if (!res.ok) { showToast("Error al simular", true); return; }
+  document.getElementById("sim-text").value = "";
+  await refreshOutbox();
+  refreshTicketBadge();
+}
+
+async function simFollowups() {
+  const r = await (await fetch("/api/dev/run-followups?force=true", { method: "POST" })).json();
+  showToast(`Seguimientos enviados: ${r.sent}`);
+  refreshOutbox();
+}
+
+async function refreshOutbox() {
+  const rows = await (await fetch("/api/dev/outbox?limit=30")).json();
+  const icon = { message: "💬", post: "📣", owner_alert: "🔔", read: "👁️" };
+  document.getElementById("sim-outbox").innerHTML = rows.length
+    ? rows.map(r => `<div class="outbox-row"><span class="badge badge-${esc(r.channel)}">${esc(r.channel)}</span> ${icon[r.kind] || ""} <span class="outbox-to">→ ${esc(r.recipient || "página")}</span><div>${esc(r.content)}</div></div>`).join("")
+    : '<div class="empty-state"><p>Aún no se ha “enviado” nada.</p></div>';
 }

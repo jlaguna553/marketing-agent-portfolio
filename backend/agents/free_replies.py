@@ -46,8 +46,13 @@ def normalize(text: str) -> str:
     return re.sub(r"[^a-z0-9ñ\s👋]", " ", text).strip()
 
 
+def _stem(t: str) -> str:
+    """Singular/plural básico: 'sistemas' == 'sistema', 'páginas' == 'pagina'."""
+    return t[:-1] if len(t) > 4 and t.endswith("s") else t
+
+
 def _tokens(text: str) -> set[str]:
-    return {t for t in normalize(text).split() if t and t not in _STOPWORDS}
+    return {_stem(t) for t in normalize(text).split() if t and t not in _STOPWORDS}
 
 
 def similarity(a: str, b: str) -> float:

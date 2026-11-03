@@ -137,7 +137,16 @@ def _parse_response(raw: str) -> AgentResult:
     )
 
 
+def _simulated_complete(messages: list[dict]) -> str:
+    """IA simulada para pruebas locales sin clave: permite recorrer el flujo de tickets."""
+    last = messages[-1]["content"].split("\n[Cliente")[0].strip() if messages else ""
+    return (f"{_TICKET_MARKER}\nPREGUNTA: {last[:140]}\n"
+            "RESPUESTA_CLIENTE: [IA simulada] Déjame consultarlo con el equipo y te respondo a la brevedad. 🙏")
+
+
 async def _anthropic_complete(system: str, messages: list[dict]) -> str:
+    if settings.mock_integrations and not settings.anthropic_api_key:
+        return _simulated_complete(messages)
     import anthropic
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     response = await client.messages.create(

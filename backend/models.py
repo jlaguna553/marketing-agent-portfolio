@@ -53,6 +53,7 @@ class CustomerMessage(Base):
     message: Mapped[str] = mapped_column(Text)
     response: Mapped[str | None] = mapped_column(Text, nullable=True)
     responded: Mapped[bool] = mapped_column(Boolean, default=False)
+    direction: Mapped[str] = mapped_column(String(5), default="in")  # in = cliente | out = mensaje nuestro (manual/seguimiento)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -99,5 +100,9 @@ class Lead(Base):
     sender_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     first_message: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="new")  # new | contacted | scheduled | won | lost
+    intent: Mapped[str] = mapped_column(String(20), default="info")  # info | booking
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_inbound_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    followups_sent: Mapped[int] = mapped_column(default=0)
+    last_followup_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -5,6 +5,7 @@ Documentación: https://developers.facebook.com/docs/graph-api
 from pathlib import Path
 import httpx
 from ..config import get_settings
+from . import outbox
 
 settings = get_settings()
 
@@ -25,6 +26,9 @@ class FacebookAPI:
         Publica un post en la página de Facebook.
         Retorna el ID del post creado.
         """
+        if settings.mock_integrations:
+            await outbox.record("facebook", "post", message + (f"\n[imagen: {image_url}]" if image_url else ""))
+            return {"id": outbox.fake_id("fbpost")}
         url = f"{GRAPH_API_BASE}/{self.page_id}/feed"
         payload: dict = {"message": message, "access_token": self.token}
 
@@ -59,6 +63,9 @@ class FacebookAPI:
         Requiere una imagen (Instagram no permite posts solo texto).
         Retorna el ID del post creado.
         """
+        if settings.mock_integrations:
+            await outbox.record("instagram", "post", f"{caption}\n[imagen: {image_url}]")
+            return {"id": outbox.fake_id("igpost")}
         async with httpx.AsyncClient(timeout=60) as client:
             # Paso 1: Crear container de media
             container_url = f"{GRAPH_API_BASE}/{self.ig_account_id}/media"
@@ -92,6 +99,9 @@ class FacebookAPI:
 
     async def send_facebook_message(self, recipient_id: str, message: str) -> dict:
         """Envía un mensaje por Facebook Messenger."""
+        if settings.mock_integrations:
+            await outbox.record("facebook", "message", message, recipient_id)
+            return {"message_id": outbox.fake_id("mid")}
         url = f"{GRAPH_API_BASE}/me/messages"
         payload = {
             "recipient": {"id": recipient_id},

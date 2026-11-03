@@ -6,12 +6,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 import logging
 
 from backend.database import init_db, AsyncSessionLocal
 from backend.scheduler import start_scheduler, stop_scheduler
-from backend.routers import chat, posts, webhook, leads
+from backend.routers import chat, posts, webhook, leads, dev
 from backend.routers.tickets import router as tickets_router, kb_router
 from backend.config import get_settings
 
@@ -69,11 +69,25 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "testserver"}
+
+
+@app.middleware("http")
+async def restrict_remote_admin(request, call_next):
+    """Con un túnel (ngrok) el panel NO debe quedar público: desde fuera solo se permite el webhook de Meta."""
+    if settings.restrict_remote_admin:
+        host = request.headers.get("host", "").split(":")[0].lower()
+        if host not in LOCAL_HOSTS and not request.url.path.startswith("/webhook/meta"):
+            return JSONResponse({"detail": "No disponible desde fuera"}, status_code=404)
+    return await call_next(request)
+
+
 # Routers
 app.include_router(chat.router)
 app.include_router(posts.router)
 app.include_router(webhook.router)
 app.include_router(leads.router)
+app.include_router(dev.router)
 app.include_router(tickets_router)
 app.include_router(kb_router)
 
@@ -88,6 +102,8 @@ async def get_config():
         "facebook_configured": bool(settings.facebook_page_id),
         "instagram_configured": bool(settings.instagram_account_id),
         "whatsapp_configured": bool(settings.whatsapp_phone_number_id),
+        "mock_mode": settings.mock_integrations,
+        "booking_url": settings.booking_url,
     }
 
 
