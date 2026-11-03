@@ -67,6 +67,8 @@ class KnowledgeBase(Base):
     answer: Mapped[str] = mapped_column(Text)          # Respuesta oficial
     category: Mapped[str] = mapped_column(String(50), default="general")  # menu|horarios|pedidos|general
     times_used: Mapped[int] = mapped_column(default=0) # Cuántas veces ayudó al agente
+    embedding: Mapped[str | None] = mapped_column(Text, nullable=True)           # vector JSON (RAG)
+    embedding_hash: Mapped[str | None] = mapped_column(String(40), nullable=True)  # detecta entradas editadas
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
