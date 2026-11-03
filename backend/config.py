@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     cf_content_model: str = "@cf/meta/llama-3.1-8b-instruct-fp8"
     cf_embedding_model: str = "@cf/baai/bge-m3"  # multilingüe; verifica su costo en la documentación de Cloudflare
 
+    # ── Estudio de posts: Worker `felix-post-studio` (ver worker/studio/README) ──
+    # Vacío + MOCK_INTEGRATIONS=true => texto simulado local. La clave es la misma que `wrangler secret put STUDIO_KEY`.
+    studio_worker_url: str = ""
+    studio_worker_key: str = ""
+    studio_facts_k: int = 4             # entradas de la KB (RAG) que se mandan como datos verificados
+
     # ── RAG: enviar solo las entradas relevantes de la KB en cada prompt ──
     rag_enabled: bool = True
     rag_top_k: int = 4

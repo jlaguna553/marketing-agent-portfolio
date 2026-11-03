@@ -662,3 +662,21 @@ body {
 .btn-primary { background:var(--accent, #6366f1); color:#fff; }
 .btn-primary:hover { filter:brightness(1.1); }
 .btn-secondary { background:rgba(255,255,255,.08); color:inherit; border:1px solid var(--border, #2a2b45); }
+
+/* Estudio de posts */
+.studio-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1fr);gap:24px;padding:0 24px 24px}
+@media(max-width:900px){.studio-grid{grid-template-columns:1fr}}
+.studio-col label{display:block;font-size:12px;opacity:.75;margin:12px 0 4px}
+.studio-col textarea,.studio-col input[type=text],.studio-col input[type=datetime-local],.studio-col select{width:100%;box-sizing:border-box}
+.studio-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.studio-drop{border:2px dashed #5b6b8f;border-radius:12px;padding:16px;text-align:center;font-size:13px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.studio-drop.over,.studio-drop:focus{border-color:#2F6BFF;background:rgba(47,107,255,.08);outline:none}
+.studio-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.studio-thumb{position:relative;width:72px;height:72px}
+.studio-thumb img{width:100%;height:100%;object-fit:cover;border-radius:8px}
+.studio-thumb button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:#ef4444;color:#fff;cursor:pointer;line-height:1}
+.studio-preview{width:100%;max-width:420px;border-radius:12px;display:block}
+.studio-error{color:#f87171;font-size:13px;min-height:18px}
+.studio-warn{color:#facc15;font-size:12px;margin-top:6px}
+.studio-facts,.studio-note{font-size:11px;opacity:.6;margin-top:6px}
+.studio-badge{font-size:12px;opacity:.75;margin-left:12px}
