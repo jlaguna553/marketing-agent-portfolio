@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
 from ..database import get_db
-from ..models import CustomerMessage, HelpTicket
+from ..models import CustomerMessage, HelpTicket, Lead
 from ..agents.response_agent import process_customer_message, should_auto_respond
 from ..integrations.whatsapp import whatsapp_api
 from ..integrations.facebook import facebook_api
@@ -15,6 +15,13 @@ from ..config import get_settings
 
 router = APIRouter(prefix="/webhook", tags=["webhook"])
 settings = get_settings()
+
+
+async def _capture_lead(db: AsyncSession, platform: str, sender_id: str, name: str | None, text: str) -> None:
+    """Registra un lead una sola vez por remitente cuando muestra interés en agendar/cotizar."""
+    exists = (await db.execute(select(Lead.id).where(Lead.sender_id == sender_id))).first()
+    if not exists:
+        db.add(Lead(platform=platform, sender_id=sender_id, sender_name=name, first_message=text))
 
 
 @router.get("/meta")
@@ -92,6 +99,9 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
                 db.add(customer_msg)
 
+                if result.wants_booking:
+                    await _capture_lead(db, "whatsapp", sender_phone, sender_name, message_text)
+
                 # Crear ticket si el agente no pudo responder
                 if result.needs_ticket:
                     ticket = HelpTicket(
@@ -136,6 +146,9 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                     customer_msg.response = f"[Error al enviar: {e}]"
 
                 db.add(customer_msg)
+
+                if result.wants_booking:
+                    await _capture_lead(db, "facebook", sender_id, None, message_text)
 
                 if result.needs_ticket:
                     ticket = HelpTicket(

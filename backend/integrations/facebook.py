@@ -2,6 +2,7 @@
 Integración con Meta Graph API para publicar en Facebook e Instagram.
 Documentación: https://developers.facebook.com/docs/graph-api
 """
+from pathlib import Path
 import httpx
 from ..config import get_settings
 
@@ -26,6 +27,21 @@ class FacebookAPI:
         """
         url = f"{GRAPH_API_BASE}/{self.page_id}/feed"
         payload: dict = {"message": message, "access_token": self.token}
+
+        # Imagen local (carpeta media/): se sube directo, sin necesitar hosting público.
+        if image_url and not image_url.startswith(("http://", "https://")):
+            path = Path(image_url).resolve()
+            if not path.is_file() or Path("media").resolve() not in path.parents:
+                raise ValueError(f"Imagen local no válida (debe estar dentro de media/): {image_url}")
+            async with httpx.AsyncClient(timeout=60) as client:
+                with path.open("rb") as fh:
+                    response = await client.post(
+                        f"{GRAPH_API_BASE}/{self.page_id}/photos",
+                        data={"caption": message, "access_token": self.token},
+                        files={"source": (path.name, fh, "image/png")},
+                    )
+                response.raise_for_status()
+                return response.json()
 
         if image_url:
             url = f"{GRAPH_API_BASE}/{self.page_id}/photos"

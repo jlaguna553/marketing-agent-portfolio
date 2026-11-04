@@ -21,6 +21,10 @@ class CreatePostRequest(BaseModel):
     scheduled_at: str | None = None
 
 
+class ImportPostsRequest(BaseModel):
+    posts: list[CreatePostRequest]
+
+
 class PublishPostRequest(BaseModel):
     post_id: int
 
@@ -72,6 +76,24 @@ async def create_post(body: CreatePostRequest, db: AsyncSession = Depends(get_db
     return {"id": post.id, "status": post.status}
 
 
+@router.post("/import")
+async def import_posts(body: ImportPostsRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Carga un calendario completo de posts ya redactados (costo de IA = $0).
+    Los que traen scheduled_at quedan programados; el scheduler los publica solo.
+    """
+    created = []
+    for item in body.posts:
+        post = Post(content=item.content, platform=item.platform, image_url=item.image_url, status="draft")
+        if item.scheduled_at:
+            post.scheduled_at = datetime.fromisoformat(item.scheduled_at)
+            post.status = "scheduled"
+        db.add(post)
+        created.append(post)
+    await db.commit()
+    return {"imported": len(created), "scheduled": sum(1 for p in created if p.status == "scheduled")}
+
+
 @router.post("/{post_id}/publish")
 async def publish_post(post_id: int, db: AsyncSession = Depends(get_db)):
     """Publica un post guardado en las redes configuradas."""
@@ -92,7 +114,7 @@ async def publish_post(post_id: int, db: AsyncSession = Depends(get_db)):
         except Exception as e:
             errors.append(f"Facebook: {e}")
 
-    if post.platform in ("instagram", "all") and post.image_url:
+    if post.platform in ("instagram", "all") and (post.image_url or "").startswith(("http://", "https://")):  # IG exige URL pública
         try:
             resp = await facebook_api.publish_instagram_post(post.content, post.image_url)
             published_ids["instagram"] = resp.get("id")

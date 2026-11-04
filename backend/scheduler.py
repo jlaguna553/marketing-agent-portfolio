@@ -43,7 +43,7 @@ async def publish_scheduled_posts():
                 except Exception as e:
                     errors.append(f"Facebook: {e}")
 
-            if post.platform in ("instagram", "all") and post.image_url:
+            if post.platform in ("instagram", "all") and (post.image_url or "").startswith(("http://", "https://")):  # IG exige URL pública
                 try:
                     await facebook_api.publish_instagram_post(post.content, post.image_url)
                 except Exception as e:

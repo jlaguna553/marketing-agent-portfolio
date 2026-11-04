@@ -92,7 +92,7 @@ async def _anthropic_stream(
     api_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
 
     async with client.messages.stream(
-        model="claude-sonnet-4-6",
+        model=settings.anthropic_content_model,
         max_tokens=2048,
         system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
         tools=_ANTHROPIC_TOOLS,
@@ -128,7 +128,7 @@ async def _anthropic_complete(prompt: str) -> str:
     import anthropic
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     response = await client.messages.create(
-        model="claude-sonnet-4-6",
+        model=settings.anthropic_content_model,
         max_tokens=1024,
         system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt}]

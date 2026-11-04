@@ -1,0 +1,76 @@
+{
+  "posts": [
+    {
+      "content": "💡 El desarrollo de software no debería ser solo para quien tiene mucho dinero.\n\nEn Felix Software hacemos software a tu medida con una renta mensual que sí puedes pagar.\n\n✅ Sin pago grande al inicio\n✅ Hecho para tu negocio, no genérico\n✅ Te acompañamos desde la idea\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "all",
+      "image_url": "media/p01_lanzamiento.png",
+      "scheduled_at": "2026-11-09T16:00:00"
+    },
+    {
+      "content": "¿Cuántas veces has pensado “eso lo resolvería un sistema”… y lo dejaste porque se oía carísimo? 🤔\n\nCuéntanos qué te quita tiempo en tu negocio. En la asesoría gratuita te decimos si se puede automatizar, en cuánto tiempo y cuánto sería al mes.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "facebook",
+      "image_url": null,
+      "scheduled_at": "2026-11-11T16:00:00"
+    },
+    {
+      "content": "SaaS: un software para todos, y tú te adaptas.\nCaaS (Custom as a Service): un software para ti, y se adapta a tu negocio.\n\nPagas una renta mensual por algo hecho a tu medida, sin armar un equipo de desarrollo.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "all",
+      "image_url": "media/p02_saas_caas.png",
+      "scheduled_at": "2026-11-13T16:00:00"
+    },
+    {
+      "content": "🍽️ ¿Tu restaurante sigue llevando cuentas en libreta?\n\nEste es un demo de nuestro punto de venta: órdenes, pantalla de cocina, inventario con alertas, recetas con costo por platillo, corte de caja y promociones. Funciona en tablet o celular y soporta varias sucursales.\n\nLo adaptamos a tu negocio, con renta mensual.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "all",
+      "image_url": "media/p03_punto_venta.png",
+      "scheduled_at": "2026-11-16T16:00:00"
+    },
+    {
+      "content": "3 señales de que tu negocio ya necesita un sistema propio:\n\n1️⃣ Repites las mismas tareas todos los días\n2️⃣ La información vive en libretas, chats y hojas sueltas\n3️⃣ Tus clientes preguntan lo mismo una y otra vez\n\nSi te identificas con alguna, platiquemos.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "facebook",
+      "image_url": null,
+      "scheduled_at": "2026-11-18T16:00:00"
+    },
+    {
+      "content": "⏰ ¿Cuántas citas pierdes al mes porque el cliente “se les olvidó”?\n\nNuestro sistema de recordatorios por WhatsApp envía avisos automáticos el día y la hora que elijas: citas, cobros, entregas y seguimientos. Con calendario, mensajes recurrentes y plantillas con imágenes.\n\nIdeal para consultorios, estéticas, gimnasios y negocios con agenda.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "all",
+      "image_url": "media/p04_recordatorios.png",
+      "scheduled_at": "2026-11-20T16:00:00"
+    },
+    {
+      "content": "🤖 Un agente con IA que redacta tus posts, los programa y contesta a tus clientes por WhatsApp y Messenger.\n\nEsta es una captura real del panel de nuestro agente de marketing. Lo adaptamos a tu negocio y a tu forma de hablar con tus clientes.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "all",
+      "image_url": "media/p05_agente_ia.png",
+      "scheduled_at": "2026-11-23T16:00:00"
+    },
+    {
+      "content": "Un sitio web no tiene por qué costar una fortuna.\n\nTe armamos una página sencilla desde $1,000 MXN al mes: diseño, publicación y mantenimiento. Sin sorpresas.\n\nCuéntanos de tu negocio y te mostramos cómo se vería.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "facebook",
+      "image_url": null,
+      "scheduled_at": "2026-11-25T16:00:00"
+    },
+    {
+      "content": "🎓 ¿Diriges una escuela o academia y manejas todo en hojas de cálculo?\n\nTenemos un demo de sistema escolar con estudiantes, calificaciones por periodo y facturación en MXN o USD, en español e inglés. Los módulos que falten, como horarios o asistencia, los desarrollamos según lo que necesites.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "all",
+      "image_url": "media/p06_escolar.png",
+      "scheduled_at": "2026-11-27T16:00:00"
+    },
+    {
+      "content": "💬 Pregunta frecuente: “¿cuánto cuesta?”\n\n🌐 Página sencilla: desde $1,000 MXN al mes\n⚙️ Sistema a tu medida: desde $2,500 MXN al mes\n🚀 Proyectos complejos: se cotizan contigo\n\nLa primera asesoría es gratis y ahí te damos un número claro.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "all",
+      "image_url": "media/p07_precios.png",
+      "scheduled_at": "2026-11-30T16:00:00"
+    },
+    {
+      "content": "Nuestro método es simple:\n\n1. Platicamos tu idea (gratis)\n2. Te decimos qué se puede hacer, cuánto tarda y cuánto cuesta al mes\n3. Lo construimos contigo y lo mantenemos\n\nTú te enfocas en tu negocio; nosotros en que la tecnología funcione.\n\n📅 Agenda tu asesoría gratuita: escríbenos por mensaje y cuéntanos tu idea.",
+      "platform": "facebook",
+      "image_url": null,
+      "scheduled_at": "2026-12-02T16:00:00"
+    },
+    {
+      "content": "Tienes una idea y no sabes por dónde empezar. Es normal. 😊\n\nPara eso es la asesoría gratuita: 30 minutos para escucharte y decirte qué se puede hacer, cuánto tiempo toma y cuánto cuesta al mes.\n\n📲 Escríbenos “QUIERO MI ASESORÍA”.",
+      "platform": "all",
+      "image_url": "media/p08_cta.png",
+      "scheduled_at": "2026-12-04T16:00:00"
+    }
+  ]
+}
