@@ -202,3 +202,14 @@ Estimación para 10,000 neuronas (150 tokens de salida, tarifas publicadas por C
 Son cálculos con tokens supuestos; mide el consumo real en el panel de Workers AI y en `GET /api/usage` (respuestas gratis, llamadas al modelo y tokens estimados que se ahorró el RAG).
 
 **RAG sin base vectorial dedicada:** `backend/rag.py` envía al modelo solo las `RAG_TOP_K` entradas más relevantes de la KB. Por defecto usa coincidencia de palabras ($0). Con `RAG_EMBEDDINGS=true` agrega búsqueda semántica con embeddings de Workers AI, guardados en la propia base SQLite y comparados por coseno; para cientos de entradas es instantáneo. Una base vectorial (Vectorize, pgvector) solo se justifica con miles de vectores o si el agente corre dentro de un Worker.
+
+## Estudio de posts (Worker de Cloudflare + plantilla de marca)
+
+Pestaña **✨ Estudio de posts**: pegas imágenes, escribes la campaña y se genera el texto de Facebook/Instagram,
+un titular y una imagen 1080×1080 con la marca de Felix Software. Las imágenes **no se analizan**; solo se validan,
+se re-codifican y se pegan en la plantilla (la primera imagen). El texto lo redacta el Worker `worker/studio`
+con tu cuota gratuita de Workers AI, usando solo datos reales de tu base de conocimiento (RAG top-k).
+
+- Local sin Worker: con `MOCK_INTEGRATIONS=true` y `STUDIO_WORKER_URL` vacío el texto es simulado (la plantilla sí es real).
+- Despliegue del Worker: ver `worker/studio/README.md`; después pon `STUDIO_WORKER_URL` y `STUDIO_WORKER_KEY` en `.env`.
+- Guardar crea un borrador/post programado en *Mis Posts*. Instagram solo publica con URL pública de imagen; Facebook sube la imagen local.

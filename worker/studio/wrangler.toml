@@ -1,0 +1,24 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "felix-post-studio"
+main = "src/index.js"
+compatibility_date = "2025-07-01"
+
+# Workers AI: no necesita token de API; usa la cuota gratuita diaria de neuronas de tu cuenta.
+[ai]
+binding = "AI"
+
+[vars]
+# 8B fp8: ~3x más barato en neuronas que el 70B. Cámbialo aquí si quieres más calidad de redacción.
+MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8"
+
+# Límite nativo (gratis): 20 generaciones por minuto en total.
+[[ratelimits]]
+name = "RATE_LIMIT"
+namespace_id = "1002"
+simple = { limit = 20, period = 60 }
+
+[observability]
+enabled = true
+
+# Secreto requerido (NO va en este archivo). Créalo con:
+#   npx wrangler secret put STUDIO_KEY

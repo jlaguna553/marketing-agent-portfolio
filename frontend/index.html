@@ -33,6 +33,9 @@
           🎫 Tickets de Ayuda
           <span class="badge-count" id="ticket-badge" style="display:none"></span>
         </button>
+        <button class="nav-btn" data-tab="studio">
+          ✨ Estudio de posts
+        </button>
         <button class="nav-btn" data-tab="crm">
           👥 CRM · Leads
         </button>
@@ -109,6 +112,50 @@
         </div>
         <div id="posts-list" class="posts-list">
           <div class="loading">Cargando posts...</div>
+        </div>
+      </section>
+
+      <!-- Tab: Estudio de posts -->
+      <section id="tab-studio" class="tab">
+        <div class="tab-header"><h2>Estudio de posts</h2><span id="studio-badge" class="studio-badge"></span></div>
+        <div class="studio-grid">
+          <div class="studio-col">
+            <label>Campaña (qué quieres promover)</label>
+            <textarea id="st-campaign" rows="6" maxlength="2000" placeholder="Ej: Demo de punto de venta para fondas y restaurantes. Renta desde $2,500/mes. Incluye órdenes, cocina e inventario."></textarea>
+            <div class="studio-row">
+              <div><label>Red</label><select id="st-network"><option value="both">Facebook + Instagram</option><option value="facebook">Solo Facebook</option><option value="instagram">Solo Instagram</option></select></div>
+              <div><label>Tono</label><select id="st-tone"><option value="cercano">Cercano</option><option value="profesional">Profesional</option><option value="divertido">Divertido</option></select></div>
+            </div>
+            <label>Llamado a la acción (opcional)</label>
+            <input id="st-cta" type="text" maxlength="120" placeholder="Agenda tu asesoría gratuita" />
+            <label>Imágenes (pega con Ctrl+V, arrastra o elige; máx. 4, 8 MB c/u). No se analizan: solo se usan en el post; la primera va en la plantilla.</label>
+            <div id="st-drop" class="studio-drop" tabindex="0">Pega o arrastra imágenes aquí
+              <input id="st-files" type="file" accept="image/*" multiple hidden />
+              <button type="button" class="filter-btn" onclick="document.getElementById('st-files').click()">Elegir archivos</button>
+            </div>
+            <div id="st-thumbs" class="studio-thumbs"></div>
+            <button id="st-go" class="btn-primary" onclick="studioGenerate()">✨ Generar post</button>
+            <p id="st-error" class="studio-error"></p>
+          </div>
+          <div class="studio-col" id="st-result" style="display:none">
+            <img id="st-preview" class="studio-preview" alt="Plantilla del post" />
+            <div class="studio-row">
+              <div><label>Titular en la imagen</label><input id="st-headline" type="text" maxlength="70" /></div>
+              <div><label>Botón (CTA)</label><input id="st-cta2" type="text" maxlength="60" /></div>
+            </div>
+            <button type="button" class="filter-btn" onclick="studioRender()">Actualizar imagen</button>
+            <label>Texto para Facebook</label>
+            <textarea id="st-fb" rows="6"></textarea>
+            <label>Texto para Instagram (incluye hashtags)</label>
+            <textarea id="st-ig" rows="6"></textarea>
+            <div id="st-warn" class="studio-warn"></div>
+            <div id="st-facts" class="studio-facts"></div>
+            <div class="studio-row">
+              <div><label>Programar (opcional)</label><input id="st-when" type="datetime-local" /></div>
+              <div style="align-self:end"><button class="btn-primary" onclick="studioSave('facebook')">Guardar Facebook</button> <button class="filter-btn" onclick="studioSave('instagram')">Guardar Instagram</button></div>
+            </div>
+            <p class="studio-note">Instagram solo publica si la imagen tiene una URL pública; con imagen local se publica en Facebook.</p>
+          </div>
         </div>
       </section>
 

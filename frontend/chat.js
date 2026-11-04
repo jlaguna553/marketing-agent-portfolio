@@ -495,6 +495,7 @@ function setupTabs() {
       if (tab === "knowledge") loadKnowledge();
       if (tab === "crm") loadCrm();
       if (tab === "sim") loadSim();
+      if (tab === "studio") initStudio();
     });
   });
 }
@@ -690,4 +691,120 @@ async function refreshOutbox() {
   document.getElementById("sim-outbox").innerHTML = rows.length
     ? rows.map(r => `<div class="outbox-row"><span class="badge badge-${esc(r.channel)}">${esc(r.channel)}</span> ${icon[r.kind] || ""} <span class="outbox-to">→ ${esc(r.recipient || "página")}</span><div>${esc(r.content)}</div></div>`).join("")
     : '<div class="empty-state"><p>Aún no se ha “enviado” nada.</p></div>';
+}
+
+
+/* ── Estudio de posts ──────────────────────────────────────── */
+let stImages = [];      // File[]
+let stId = null;        // id de la plantilla generada
+let stInit = false;
+
+async function initStudio() {
+  if (stInit) return;
+  stInit = true;
+  const drop = document.getElementById("st-drop");
+  const files = document.getElementById("st-files");
+  files.addEventListener("change", () => { stAddFiles(files.files); files.value = ""; });
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); stAddFiles(e.dataTransfer.files); });
+  document.addEventListener("paste", e => {
+    if (!document.getElementById("tab-studio").classList.contains("active")) return;
+    const imgs = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith("image/"));
+    if (imgs.length) { e.preventDefault(); stAddFiles(imgs); }
+  });
+  try {
+    const s = await (await fetch("/api/studio/status")).json();
+    document.getElementById("studio-badge").textContent = s.worker_configured ? "Worker conectado" : (s.simulated ? "🧪 Texto simulado (local)" : "⚠️ Falta STUDIO_WORKER_URL");
+  } catch (_) {}
+}
+
+function stAddFiles(list) {
+  for (const f of list) {
+    if (!f.type.startsWith("image/")) continue;
+    if (stImages.length >= 4) { showToast("Máximo 4 imágenes"); break; }
+    if (f.size > 8 * 1024 * 1024) { showToast(`${f.name} pesa más de 8 MB`); continue; }
+    stImages.push(f);
+  }
+  stRenderThumbs();
+}
+
+function stRenderThumbs() {
+  const box = document.getElementById("st-thumbs");
+  box.innerHTML = "";
+  stImages.forEach((f, i) => {
+    const wrap = document.createElement("div");
+    wrap.className = "studio-thumb";
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(f);
+    img.alt = "";
+    const x = document.createElement("button");
+    x.type = "button"; x.textContent = "×"; x.title = "Quitar";
+    x.onclick = () => { stImages.splice(i, 1); stRenderThumbs(); };
+    wrap.append(img, x);
+    box.appendChild(wrap);
+  });
+}
+
+function stError(msg) { document.getElementById("st-error").textContent = msg || ""; }
+
+async function studioGenerate() {
+  const campaign = document.getElementById("st-campaign").value.trim();
+  if (campaign.length < 10) return stError("Describe la campaña (mínimo 10 caracteres).");
+  stError("");
+  const btn = document.getElementById("st-go");
+  btn.disabled = true; btn.textContent = "Generando...";
+  const fd = new FormData();
+  fd.append("campaign", campaign);
+  fd.append("network", document.getElementById("st-network").value);
+  fd.append("tone", document.getElementById("st-tone").value);
+  fd.append("cta", document.getElementById("st-cta").value.trim());
+  stImages.forEach(f => fd.append("images", f));
+  try {
+    const r = await fetch("/api/studio/generate", { method: "POST", body: fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail?.message || "No se pudo generar el post");
+    stId = j.id;
+    const p = j.post;
+    document.getElementById("st-headline").value = p.headline;
+    document.getElementById("st-cta2").value = p.cta;
+    document.getElementById("st-fb").value = p.facebook || "";
+    document.getElementById("st-ig").value = [p.instagram, (p.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
+    stShowImage(j.image_url);
+    const warn = document.getElementById("st-warn");
+    warn.textContent = (j.warnings || []).length ? "⚠️ " + j.warnings.join(" · ") + " — revisa antes de publicar." : "";
+    const facts = document.getElementById("st-facts");
+    facts.textContent = j.facts_used?.length ? "Datos de tu base usados: " + j.facts_used.join(" | ") : "";
+    document.getElementById("st-result").style.display = "";
+  } catch (e) {
+    stError(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "✨ Generar post";
+  }
+}
+
+function stShowImage(url) {
+  document.getElementById("st-preview").src = "/" + url + "?t=" + Date.now();
+}
+
+async function studioRender() {
+  if (!stId) return;
+  const r = await fetch("/api/studio/render", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: stId, headline: document.getElementById("st-headline").value, cta: document.getElementById("st-cta2").value }),
+  });
+  if (r.ok) stShowImage((await r.json()).image_url); else showToast("No se pudo actualizar la imagen");
+}
+
+async function studioSave(platform) {
+  if (!stId) return;
+  const content = document.getElementById(platform === "facebook" ? "st-fb" : "st-ig").value.trim();
+  if (!content) return showToast("El texto está vacío");
+  const when = document.getElementById("st-when").value;
+  const r = await fetch("/api/studio/save", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: stId, content, platform, scheduled_at: when || null }),
+  });
+  const j = await r.json();
+  showToast(r.ok ? (j.status === "scheduled" ? "Post programado ✅" : "Borrador guardado ✅") : (j.detail?.message || "No se pudo guardar"));
 }

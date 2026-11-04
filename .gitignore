@@ -29,3 +29,6 @@ obj/
 *.db-journal
 local_crm.db
 venv/
+
+# Imágenes generadas por el estudio
+media/studio/

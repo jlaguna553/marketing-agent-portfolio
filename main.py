@@ -11,7 +11,7 @@ import logging
 
 from backend.database import init_db, AsyncSessionLocal
 from backend.scheduler import start_scheduler, stop_scheduler
-from backend.routers import chat, posts, webhook, leads, dev
+from backend.routers import chat, posts, webhook, leads, dev, studio
 from backend.routers.tickets import router as tickets_router, kb_router
 from backend.config import get_settings
 
@@ -88,6 +88,7 @@ app.include_router(posts.router)
 app.include_router(webhook.router)
 app.include_router(leads.router)
 app.include_router(dev.router)
+app.include_router(studio.router)
 app.include_router(tickets_router)
 app.include_router(kb_router)
 
@@ -126,6 +127,10 @@ async def check_ollama():
 # Servir archivos estáticos del frontend
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+# Imágenes generadas por el estudio (vista previa en el panel)
+Path("media/studio").mkdir(parents=True, exist_ok=True)
+app.mount("/media/studio", StaticFiles(directory="media/studio"), name="studio-media")
 
 @app.get("/")
 async def serve_index():
