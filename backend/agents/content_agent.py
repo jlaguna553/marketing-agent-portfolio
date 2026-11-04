@@ -183,12 +183,34 @@ async def _ollama_complete(prompt: str) -> str:
 # ──────────────────────────────────────────────────────────────
 #  API pública — el router solo llama estas dos funciones
 # ──────────────────────────────────────────────────────────────
+async def _workers_ai_stream(messages: list[dict], tool_callback=None) -> AsyncGenerator[str, None]:
+    """Workers AI por REST (sin streaming): devuelve el texto completo y detecta el JSON del post al final."""
+    from .. import workers_ai
+    from ..ollama_client import extract_action_from_text
+    try:
+        text = await workers_ai.complete(SYSTEM_PROMPT, messages, settings.cf_content_model, 1024)
+    except workers_ai.WorkersAIError as e:
+        yield f"⚠️ No pude generar el contenido ahora: {e}"
+        return
+    yield text
+    action = extract_action_from_text(text)
+    if tool_callback and action and action.get("post_content"):
+        await tool_callback("create_post", {
+            "content": action.get("post_content", ""), "platform": action.get("platform", "all"),
+            "hashtags": action.get("hashtags", []), "publish_now": action.get("publish_now", False),
+            "scheduled_time": action.get("scheduled_time"),
+        })
+
+
 async def chat_stream(
     messages: list[dict],
     tool_callback=None
 ) -> AsyncGenerator[str, None]:
     """Streaming del agente hacia el chat del dueño. Enruta según LLM_PROVIDER."""
-    if settings.llm_provider == "ollama":
+    if settings.llm_provider == "workers_ai":
+        async for chunk in _workers_ai_stream(messages, tool_callback):
+            yield chunk
+    elif settings.llm_provider == "ollama":
         async for chunk in _ollama_stream(messages, tool_callback):
             yield chunk
     else:
@@ -198,7 +220,10 @@ async def chat_stream(
 
 async def generate_post_simple(prompt: str) -> dict:
     """Genera un post sin streaming. Útil para uso interno."""
-    if settings.llm_provider == "ollama":
+    if settings.llm_provider == "workers_ai":
+        from .. import workers_ai
+        text = await workers_ai.complete(SYSTEM_PROMPT, [{"role": "user", "content": prompt}], settings.cf_content_model, 1024)
+    elif settings.llm_provider == "ollama":
         text = await _ollama_complete(prompt)
     else:
         text = await _anthropic_complete(prompt)

@@ -107,6 +107,13 @@ async def get_config():
     }
 
 
+@app.get("/api/usage")
+async def get_usage():
+    """Ahorro de IA: respuestas gratis vs. llamadas al modelo, y tokens estimados evitados por RAG."""
+    from backend import usage
+    return usage.snapshot()
+
+
 @app.get("/api/health/ollama")
 async def check_ollama():
     """Verifica la conexión con Ollama y que el modelo esté disponible."""

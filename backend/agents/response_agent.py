@@ -17,6 +17,7 @@ from sqlalchemy import select, func
 from ..config import get_settings
 from ..models import KnowledgeBase, Lead
 from .free_replies import try_free_reply, cache_put
+from .. import usage, rag, workers_ai
 
 settings = get_settings()
 
@@ -65,12 +66,16 @@ class AgentResult:
 
 
 async def _load_kb_content(db: AsyncSession) -> str:
-    """Carga la base de conocimiento y la formatea para el prompt."""
+    """Carga la base de conocimiento completa y la formatea para el prompt."""
     result = await db.execute(
         select(KnowledgeBase).order_by(KnowledgeBase.category, KnowledgeBase.id)
     )
-    entries = result.scalars().all()
+    return _format_kb(result.scalars().all())
 
+
+def _format_kb(entries: list) -> str:
+    """Formatea entradas de la KB para el prompt."""
+    entries = sorted(entries, key=lambda e: (e.category, e.id))
     if not entries:
         return "(La base de conocimiento está vacía. Usa tickets para ir llenándola.)"
 
@@ -158,6 +163,10 @@ async def _anthropic_complete(system: str, messages: list[dict]) -> str:
     return response.content[0].text
 
 
+async def _workers_ai_complete(system: str, messages: list[dict]) -> str:
+    return await workers_ai.complete(system, messages, settings.cf_response_model, settings.max_reply_tokens)
+
+
 async def _ollama_complete(system: str, messages: list[dict]) -> str:
     from ..ollama_client import complete
     return await complete(
@@ -189,11 +198,16 @@ async def process_customer_message(
             for e in entries:
                 if e.id == free.kb_id:
                     e.times_used = (e.times_used or 0) + 1
+        usage.free_reply()
         return AgentResult(response_text=free.text, needs_ticket=False, ticket_question="",
                            wants_booking=free.wants_booking, source=free.reason)
 
-    # 2) Si no alcanza, consulta al modelo con el mínimo de contexto
-    kb_content = await _load_kb_content(db)
+    # 2) Si no alcanza, consulta al modelo con el mínimo de contexto (RAG: solo las entradas relevantes)
+    full_kb = _format_kb(entries)
+    if settings.rag_enabled and len(entries) >= settings.rag_min_entries:
+        kb_content = _format_kb(await rag.retrieve(db, customer_message, entries))
+    else:
+        kb_content = full_kb
     system = _build_system_prompt(kb_content)
 
     messages: list[dict] = []
@@ -208,10 +222,21 @@ async def process_customer_message(
 
     messages.append({"role": "user", "content": customer_message + ("\n" + platform_hint if platform_hint else "")})
 
-    if settings.llm_provider == "ollama":
-        raw = await _ollama_complete(system, messages)
-    else:
-        raw = await _anthropic_complete(system, messages)
+    usage.llm_call(len(system) + sum(len(m["content"]) for m in messages), len(full_kb) - len(kb_content))
+    try:
+        if settings.llm_provider == "ollama":
+            raw = await _ollama_complete(system, messages)
+        elif settings.llm_provider == "workers_ai":
+            raw = await _workers_ai_complete(system, messages)
+        else:
+            raw = await _anthropic_complete(system, messages)
+    except workers_ai.WorkersAIError as err:
+        # Sin cuota diaria (o falla del servicio): que lo atienda una persona, sin dejar al cliente sin respuesta.
+        if isinstance(err, workers_ai.DailyLimitReached):
+            usage.limit_hit()
+        return AgentResult(
+            response_text="Gracias por escribirnos 🙏 En este momento tenemos mucha demanda; una persona del equipo te responde a la brevedad.",
+            needs_ticket=True, ticket_question=customer_message[:140], source="limit")
 
     result = _parse_response(raw)
     if not result.needs_ticket and not conversation_history:

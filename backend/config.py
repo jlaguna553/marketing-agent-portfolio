@@ -28,6 +28,20 @@ class Settings(BaseSettings):
     followup_max: int = 2               # máximo de seguimientos por lead
     followup_check_seconds: int = 900   # cada cuánto revisa la automatización
 
+    # ── Cloudflare Workers AI (cuota gratuita diaria de neuronas, compartida con tus Workers) ──
+    # LLM_PROVIDER=workers_ai para usarlo. Token: dash.cloudflare.com → Mi perfil → Tokens de API → permiso "Workers AI".
+    cf_account_id: str = ""
+    cf_api_token: str = ""
+    cf_response_model: str = "@cf/meta/llama-3.1-8b-instruct-fp8"  # ~3x más barato en neuronas que el 70B
+    cf_content_model: str = "@cf/meta/llama-3.1-8b-instruct-fp8"
+    cf_embedding_model: str = "@cf/baai/bge-m3"  # multilingüe; verifica su costo en la documentación de Cloudflare
+
+    # ── RAG: enviar solo las entradas relevantes de la KB en cada prompt ──
+    rag_enabled: bool = True
+    rag_top_k: int = 4
+    rag_min_entries: int = 6        # con menos entradas que esto se envía la KB completa
+    rag_embeddings: bool = False    # true = búsqueda semántica con embeddings de Workers AI
+
     # ── Control de costos ─────────────────────────────────────
     # Responder SIN llamar al LLM cuando la KB o una regla ya cubre la pregunta.
     free_replies_enabled: bool = True

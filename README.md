@@ -185,3 +185,20 @@ Endpoints útiles: `GET /api/leads/`, `GET /api/leads/stats`, `POST /api/leads/{
 4. Con `RESTRICT_REMOTE_ADMIN=true` (por defecto) el panel **no** es accesible por el túnel: desde fuera solo responde `/webhook/meta`.
 
 > Producción: el panel y la API no tienen login. No los publiques en internet sin autenticación.
+
+
+## Workers AI (cuota gratuita) y RAG
+
+`LLM_PROVIDER=workers_ai` usa los modelos abiertos de Cloudflare por REST. La cuota gratuita es de **10,000 neuronas por día para toda la cuenta**, así que se comparte con tus Workers (por ejemplo `cv-online`). Si se agota (error 3036), el agente no se cae: avisa al cliente que lo atenderá una persona y deja un ticket.
+
+Estimación para 10,000 neuronas (150 tokens de salida, tarifas publicadas por Cloudflare):
+
+| Modelo | KB completa (1,500 tok) | Con RAG (600 tok) |
+|---|---|---|
+| Llama 3.3 70B fp8 fast | ~141 respuestas/día | ~214 |
+| Llama 3.1 8B fp8 | ~407 | ~821 |
+| Llama 3.2 3B | ~869 | ~1,361 |
+
+Son cálculos con tokens supuestos; mide el consumo real en el panel de Workers AI y en `GET /api/usage` (respuestas gratis, llamadas al modelo y tokens estimados que se ahorró el RAG).
+
+**RAG sin base vectorial dedicada:** `backend/rag.py` envía al modelo solo las `RAG_TOP_K` entradas más relevantes de la KB. Por defecto usa coincidencia de palabras ($0). Con `RAG_EMBEDDINGS=true` agrega búsqueda semántica con embeddings de Workers AI, guardados en la propia base SQLite y comparados por coseno; para cientos de entradas es instantáneo. Una base vectorial (Vectorize, pgvector) solo se justifica con miles de vectores o si el agente corre dentro de un Worker.
