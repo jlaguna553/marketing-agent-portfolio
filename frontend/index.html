@@ -16,6 +16,7 @@
           <span class="logo-text">Marketing Agent</span>
         </div>
         <p class="business-name" id="business-name">Cargando...</p>
+        <p id="mock-banner" style="display:none;font-size:11px;color:#facc15;margin-top:4px">🧪 MODO LOCAL</p>
       </div>
 
       <nav class="sidebar-nav">
@@ -31,6 +32,12 @@
         <button class="nav-btn" data-tab="tickets">
           🎫 Tickets de Ayuda
           <span class="badge-count" id="ticket-badge" style="display:none"></span>
+        </button>
+        <button class="nav-btn" data-tab="crm">
+          👥 CRM · Leads
+        </button>
+        <button class="nav-btn" data-tab="sim" id="nav-sim" style="display:none">
+          🧪 Simulador
         </button>
         <button class="nav-btn" data-tab="knowledge">
           📚 Base de Conocimiento
@@ -103,6 +110,38 @@
         <div id="posts-list" class="posts-list">
           <div class="loading">Cargando posts...</div>
         </div>
+      </section>
+
+      <!-- Tab: CRM -->
+      <section id="tab-crm" class="tab">
+        <div class="tab-header">
+          <h2>CRM · Leads</h2>
+          <div class="filter-btns" id="crm-filters">
+            <button class="filter-btn active" data-status="" onclick="loadCrm('')">Todos</button>
+            <button class="filter-btn" data-status="new" onclick="loadCrm('new')">Nuevos</button>
+            <button class="filter-btn" data-status="contacted" onclick="loadCrm('contacted')">Contactados</button>
+            <button class="filter-btn" data-status="scheduled" onclick="loadCrm('scheduled')">Agendados</button>
+            <button class="filter-btn" data-status="won" onclick="loadCrm('won')">Clientes</button>
+          </div>
+        </div>
+        <div id="crm-stats" class="crm-stats"></div>
+        <div id="crm-list" class="lead-list"><div class="loading">Cargando...</div></div>
+      </section>
+
+      <!-- Tab: Simulador (modo local) -->
+      <section id="tab-sim" class="tab">
+        <div class="tab-header"><h2>Simulador de clientes</h2></div>
+        <div class="tickets-info">🧪 Modo local: nada sale a Meta ni a WhatsApp. Escribe como si fueras un cliente y mira cómo responde el bot, cómo se crea el lead y qué “se enviaría”.</div>
+        <div class="sim-form">
+          <select id="sim-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Messenger</option></select>
+          <input id="sim-sender" type="text" placeholder="ID/teléfono (ej. 5214610000001)" />
+          <input id="sim-name" type="text" placeholder="Nombre (WhatsApp)" />
+          <input id="sim-text" type="text" placeholder="Mensaje del cliente..." onkeydown="if(event.key==='Enter')simSend()" />
+          <button class="btn-primary" onclick="simSend()">Enviar</button>
+          <button class="btn-secondary" onclick="simFollowups()">⏱️ Correr seguimientos ahora</button>
+        </div>
+        <h3 style="margin:16px 0 8px">Bandeja de salida (lo que se habría enviado)</h3>
+        <div id="sim-outbox" class="outbox"></div>
       </section>
 
       <!-- Tab: Mensajes de Clientes -->

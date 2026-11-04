@@ -10,8 +10,10 @@ from .database import AsyncSessionLocal
 from .models import Post
 from .integrations.facebook import facebook_api
 import logging
+from .config import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 scheduler = AsyncIOScheduler()
 
@@ -61,6 +63,15 @@ async def publish_scheduled_posts():
         await db.commit()
 
 
+async def run_crm_followups():
+    """Seguimiento automático a leads que pidieron agendar y no avanzaron."""
+    from .crm import run_followups
+    async with AsyncSessionLocal() as db:
+        n = await run_followups(db)
+        if n:
+            logger.info(f"CRM: {n} seguimiento(s) enviados")
+
+
 def start_scheduler():
     """Inicia el scheduler de publicación automática."""
     scheduler.add_job(
@@ -68,6 +79,12 @@ def start_scheduler():
         trigger=IntervalTrigger(minutes=1),
         id="publish_scheduled_posts",
         replace_existing=True
+    )
+    scheduler.add_job(
+        run_crm_followups,
+        trigger=IntervalTrigger(seconds=settings.followup_check_seconds),
+        id="crm_followups",
+        replace_existing=True,
     )
     scheduler.start()
     logger.info("Scheduler de publicaciones iniciado (intervalo: 1 minuto)")

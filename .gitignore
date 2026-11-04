@@ -27,3 +27,5 @@ obj/
 # Base de datos local (contiene conversaciones y datos de clientes)
 *.db
 *.db-journal
+local_crm.db
+venv/

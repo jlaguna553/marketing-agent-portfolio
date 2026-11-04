@@ -5,6 +5,7 @@ Documentación: https://developers.facebook.com/docs/whatsapp/cloud-api
 import logging
 import httpx
 from ..config import get_settings
+from . import outbox
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,11 @@ class WhatsAppAPI:
             to: Número de teléfono del destinatario (formato internacional, ej: 524612172611)
             message: Texto del mensaje
         """
-        url = f"{WHATSAPP_API_BASE}/{self.phone_number_id}/messages"
         to_clean = self.normalize_phone(to)
+        if settings.mock_integrations:
+            await outbox.record("whatsapp", "message", message, to_clean)
+            return {"messages": [{"id": outbox.fake_id("wamid")}]}
+        url = f"{WHATSAPP_API_BASE}/{self.phone_number_id}/messages"
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -94,6 +98,8 @@ class WhatsAppAPI:
 
     async def mark_as_read(self, message_id: str) -> dict:
         """Marca un mensaje como leído."""
+        if settings.mock_integrations:
+            return {"success": True}
         url = f"{WHATSAPP_API_BASE}/{self.phone_number_id}/messages"
         payload = {
             "messaging_product": "whatsapp",

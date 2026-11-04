@@ -2,26 +2,24 @@
 Webhook de Meta para recibir mensajes de WhatsApp y Facebook en tiempo real.
 Usa el agente especializado que maneja KB y tickets de ayuda.
 """
+import hashlib
+import hmac
+import json
+import logging
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
 from ..database import get_db
-from ..models import CustomerMessage, HelpTicket, Lead
+from ..models import CustomerMessage, HelpTicket
 from ..agents.response_agent import process_customer_message, should_auto_respond
 from ..integrations.whatsapp import whatsapp_api
-from ..integrations.facebook import facebook_api
+from ..crm import send_to, notify_owner, upsert_lead
 from ..config import get_settings
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["webhook"])
 settings = get_settings()
-
-
-async def _capture_lead(db: AsyncSession, platform: str, sender_id: str, name: str | None, text: str) -> None:
-    """Registra un lead una sola vez por remitente cuando muestra interés en agendar/cotizar."""
-    exists = (await db.execute(select(Lead.id).where(Lead.sender_id == sender_id))).first()
-    if not exists:
-        db.add(Lead(platform=platform, sender_id=sender_id, sender_name=name, first_message=text))
 
 
 @router.get("/meta")
@@ -36,128 +34,68 @@ async def verify_webhook(request: Request):
 
 @router.post("/meta")
 async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    Recibe mensajes de clientes vía WhatsApp o Facebook.
-    Flujo:
-      1. Parsear mensaje entrante
-      2. Llamar al agente (KB + detección de ticket)
-      3. Si el agente puede responder → enviar al cliente
-      4. Si el agente necesita ayuda → crear ticket + enviar "te consulto" al cliente
-    """
-    body = await request.json()
+    """Recibe mensajes de clientes vía WhatsApp o Facebook Messenger."""
+    raw = await request.body()
+    if settings.meta_app_secret:
+        sent = request.headers.get("x-hub-signature-256", "")
+        expected = "sha256=" + hmac.new(settings.meta_app_secret.encode(), raw, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sent, expected):
+            raise HTTPException(status_code=403, detail="Firma inválida")
+    elif not settings.mock_integrations:
+        logger.warning("META_APP_SECRET vacío: el webhook acepta mensajes sin verificar su origen")
+    return await handle_payload(json.loads(raw or b"{}"), db)
+
+
+async def _handle_inbound(db: AsyncSession, platform: str, sender_id: str, name: str | None, text: str) -> None:
+    """Flujo común: registrar -> agente (KB/IA) -> responder -> CRM -> ticket."""
+    if not await should_auto_respond(text):
+        return
+    customer_msg = CustomerMessage(platform=platform, sender_id=sender_id, sender_name=name, message=text)
+    result = await process_customer_message(customer_message=text, db=db, platform=platform)
+
+    try:
+        await send_to(platform, sender_id, result.response_text)
+        customer_msg.response = result.response_text
+        customer_msg.responded = True
+    except Exception as e:  # noqa: BLE001
+        customer_msg.response = f"[Error al enviar: {e}]"
+    db.add(customer_msg)
+
+    await upsert_lead(db, platform, sender_id, name, text, result.wants_booking)
+
+    if result.needs_ticket:
+        db.add(HelpTicket(platform=platform, sender_id=sender_id, sender_name=name,
+                          original_message=text, extracted_question=result.ticket_question))
+        await notify_owner(f"🎫 Duda nueva de {name or sender_id}: {result.ticket_question}")
+
+
+async def handle_payload(body: dict, db: AsyncSession) -> dict:
     object_type = body.get("object", "")
 
-    # ── WhatsApp ──────────────────────────────────────────────
     if object_type == "whatsapp_business_account":
         for entry in body.get("entry", []):
             for change in entry.get("changes", []):
                 if change.get("field") != "messages":
                     continue
-                value = change.get("value", {})
                 parsed = whatsapp_api.parse_incoming_message(
-                    {"entry": [{"changes": [{"value": value}]}]}
+                    {"entry": [{"changes": [{"value": change.get("value", {})}]}]}
                 )
                 if not parsed:
                     continue
-
-                sender_phone = parsed["sender_phone"]
-                sender_name = parsed.get("sender_name", "Cliente")
-                message_text = parsed["text"]
-                message_id = parsed["message_id"]
-
-                # Marcar como leído
                 try:
-                    await whatsapp_api.mark_as_read(message_id)
-                except Exception:
+                    await whatsapp_api.mark_as_read(parsed["message_id"])
+                except Exception:  # noqa: BLE001
                     pass
+                await _handle_inbound(db, "whatsapp", parsed["sender_phone"],
+                                      parsed.get("sender_name", "Cliente"), parsed["text"])
 
-                if not await should_auto_respond(message_text):
-                    continue
-
-                # Registrar mensaje del cliente
-                customer_msg = CustomerMessage(
-                    platform="whatsapp",
-                    sender_id=sender_phone,
-                    sender_name=sender_name,
-                    message=message_text,
-                )
-
-                # Procesar con el agente (KB + ticket)
-                result = await process_customer_message(
-                    customer_message=message_text,
-                    db=db,
-                    platform="whatsapp",
-                )
-
-                # Enviar respuesta al cliente
-                try:
-                    await whatsapp_api.send_text_message(sender_phone, result.response_text)
-                    customer_msg.response = result.response_text
-                    customer_msg.responded = True
-                except Exception as e:
-                    customer_msg.response = f"[Error al enviar: {e}]"
-
-                db.add(customer_msg)
-
-                if result.wants_booking:
-                    await _capture_lead(db, "whatsapp", sender_phone, sender_name, message_text)
-
-                # Crear ticket si el agente no pudo responder
-                if result.needs_ticket:
-                    ticket = HelpTicket(
-                        platform="whatsapp",
-                        sender_id=sender_phone,
-                        sender_name=sender_name,
-                        original_message=message_text,
-                        extracted_question=result.ticket_question,
-                    )
-                    db.add(ticket)
-
-    # ── Facebook Messenger ────────────────────────────────────
     elif object_type == "page":
         for entry in body.get("entry", []):
             for messaging in entry.get("messaging", []):
                 sender_id = messaging.get("sender", {}).get("id")
-                message_obj = messaging.get("message", {})
-                message_text = message_obj.get("text")
-
-                if not sender_id or not message_text:
-                    continue
-                if not await should_auto_respond(message_text):
-                    continue
-
-                customer_msg = CustomerMessage(
-                    platform="facebook",
-                    sender_id=sender_id,
-                    message=message_text,
-                )
-
-                result = await process_customer_message(
-                    customer_message=message_text,
-                    db=db,
-                    platform="facebook",
-                )
-
-                try:
-                    await facebook_api.send_facebook_message(sender_id, result.response_text)
-                    customer_msg.response = result.response_text
-                    customer_msg.responded = True
-                except Exception as e:
-                    customer_msg.response = f"[Error al enviar: {e}]"
-
-                db.add(customer_msg)
-
-                if result.wants_booking:
-                    await _capture_lead(db, "facebook", sender_id, None, message_text)
-
-                if result.needs_ticket:
-                    ticket = HelpTicket(
-                        platform="facebook",
-                        sender_id=sender_id,
-                        original_message=message_text,
-                        extracted_question=result.ticket_question,
-                    )
-                    db.add(ticket)
+                text = messaging.get("message", {}).get("text")
+                if sender_id and text:
+                    await _handle_inbound(db, "facebook", sender_id, None, text)
 
     await db.commit()
     return {"status": "ok"}
@@ -184,6 +122,7 @@ async def get_customer_messages(
             "message": m.message,
             "response": m.response,
             "responded": m.responded,
+            "direction": m.direction,
             "created_at": m.created_at.isoformat()
         }
         for m in messages

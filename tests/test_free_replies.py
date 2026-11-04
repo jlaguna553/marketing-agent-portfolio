@@ -45,3 +45,9 @@ def test_cache():
 
 def test_similitud_simetrica_basica():
     assert similarity("precio pagina web", "¿Cuánto cuesta una página web?") > 0.4
+
+
+def test_singular_plural():
+    kb = [NS(id=9, question="¿Hacen sistemas para escuelas?", answer="Sí.")]
+    r = try_free_reply("tienen sistema para escuelas", kb, has_history=False)
+    assert r and r.reason == "kb"

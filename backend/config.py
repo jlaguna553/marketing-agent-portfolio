@@ -14,6 +14,20 @@ class Settings(BaseSettings):
     anthropic_content_model: str = "claude-haiku-5-5"
     anthropic_response_model: str = "claude-haiku-5-5"
 
+    # ── Modo local / pruebas ──────────────────────────────────
+    # true = NO llama a Meta ni a WhatsApp: guarda lo que se enviaría en la "bandeja de salida" (/api/dev/outbox)
+    # y, si no hay ANTHROPIC_API_KEY, usa una IA simulada. Ideal para probar el CRM sin credenciales.
+    mock_integrations: bool = False
+    database_url: str = "sqlite+aiosqlite:///./marketing_agent.db"
+
+    # ── CRM y automatizaciones ────────────────────────────────
+    owner_whatsapp: str = ""            # número del dueño para avisos (formato 52XXXXXXXXXX)
+    notify_owner: bool = True           # avisar al dueño de leads nuevos y tickets
+    followups_enabled: bool = True      # seguimiento automático a quien pidió agendar y no lo hizo
+    followup_after_hours: float = 3.0   # horas sin avance antes de dar seguimiento
+    followup_max: int = 2               # máximo de seguimientos por lead
+    followup_check_seconds: int = 900   # cada cuánto revisa la automatización
+
     # ── Control de costos ─────────────────────────────────────
     # Responder SIN llamar al LLM cuando la KB o una regla ya cubre la pregunta.
     free_replies_enabled: bool = True
@@ -34,6 +48,9 @@ class Settings(BaseSettings):
     facebook_page_id: str = ""
     instagram_account_id: str = ""
     meta_webhook_verify_token: str = "verify_token"
+    meta_app_secret: str = ""            # si se define, se valida la firma X-Hub-Signature-256 del webhook
+    # Si true, el panel y la API solo responden desde localhost; desde fuera (p. ej. ngrok) solo /webhook/meta.
+    restrict_remote_admin: bool = True
     whatsapp_phone_number_id: str = ""
     whatsapp_access_token: str = ""
     app_base_url: str = "http://localhost:8000"

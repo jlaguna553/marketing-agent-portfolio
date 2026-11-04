@@ -156,3 +156,32 @@ curl -X POST localhost:8000/api/posts/import -H 'content-type: application/json'
 
 > Las horas de `scheduled_at` están en UTC (10:00 en Ciudad de México = 16:00 UTC).
 > La base `marketing_agent.db` ya no se versiona: contiene conversaciones reales.
+
+
+## CRM de Felix Software en local
+
+```bash
+git checkout crm-local-felix
+./scripts/run_local.sh            # http://localhost:8000
+```
+
+El script crea el entorno, siembra la base de conocimiento de Felix Software y arranca en **modo local** (`MOCK_INTEGRATIONS=true`): no llama a Meta ni a WhatsApp y, sin `ANTHROPIC_API_KEY`, usa una IA simulada que deja las dudas desconocidas como tickets. Abre la pestaña **🧪 Simulador** para escribir como si fueras un cliente.
+
+| Pieza | Qué hace |
+|---|---|
+| Bot de bienvenida | Saludo, enlace de agenda y respuestas desde la base de conocimiento (sin costo de IA) |
+| **CRM · Leads** | Todo contacto queda registrado con estado (Nuevo → Contactado → Agendado → Cliente/Perdido), hilo completo, notas y respuesta manual por el mismo canal |
+| Aviso al dueño | WhatsApp a `OWNER_WHATSAPP` cuando alguien pide agendar y cuando llega una duda que el bot no sabe |
+| Seguimiento automático | Si alguien pidió agendar y sigue en "Nuevo" tras `FOLLOWUP_AFTER_HOURS`, el bot le recuerda el enlace (máx. `FOLLOWUP_MAX`, solo dentro de la ventana de 24 h). Si respondes tú o cambias el estado, se calla |
+| Tickets | Dudas que el bot no sabe; tu respuesta se envía al cliente y se guarda en la KB |
+| Posts programados | El calendario de `data/` se publica solo en su horario (en local, a la bandeja de salida) |
+
+Endpoints útiles: `GET /api/leads/`, `GET /api/leads/stats`, `POST /api/leads/{id}/reply`, `POST /api/dev/simulate`, `GET /api/dev/outbox`, `POST /api/dev/run-followups`.
+
+### Probar con Meta real (opcional)
+1. Pon en `.env`: `MOCK_INTEGRATIONS=false`, `META_ACCESS_TOKEN`, `FACEBOOK_PAGE_ID`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `META_WEBHOOK_VERIFY_TOKEN`, **`META_APP_SECRET`** (valida la firma del webhook) y `ANTHROPIC_API_KEY`.
+2. Expón el puerto con un túnel: `ngrok http 8000`.
+3. En Meta for Developers configura el webhook con `https://<tu-túnel>/webhook/meta` y el mismo verify token; suscribe `messages` (WhatsApp) y `messages` de la página (Messenger).
+4. Con `RESTRICT_REMOTE_ADMIN=true` (por defecto) el panel **no** es accesible por el túnel: desde fuera solo responde `/webhook/meta`.
+
+> Producción: el panel y la API no tienen login. No los publiques en internet sin autenticación.
